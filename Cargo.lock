@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust_ip_calculator"
+name = "rust_subnet_calculator"
 version = "0.1.0"
 dependencies = [
  "colored",

@@ -78,7 +78,7 @@ fn calculate_subnets(base_ip: Ipv4Addr, base_prefix: u8, host_counts: Vec<u32>) 
         current_network = broadcast + 1;
     }
 
-    subnets.sort_by_key(|(idx, _)| *idx);
+    subnets.sort_by_key(|(_, info)| ipv4_to_u32(info.network));
     Ok(subnets.into_iter().map(|(_, info)| info).collect())
 }
 

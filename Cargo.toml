@@ -2,6 +2,43 @@
 name = "rust_subnet_calculator"
 version = "0.1.0"
 edition = "2024"
+description = "A subnet calculator built with Rust"
+authors = ["Luca <lucop1911@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/Lucop1911/Rust-subnet-calculator"
 
 [dependencies]
 colored = "3.0.0"
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+debug = false
+overflow-checks = false
+
+[build-dependencies]
+winres = "0.1"
+
+[package.metadata.winres]
+ProductName = "Subnet Calculator"
+FileDescription = "Subnet Calculator"
+LegalCopyright = "Copyright (c) 2025"
+ProductVersion = "1.0.0"
+FileVersion = "1.0.0"
+
+
+[package.metadata.bundle]
+name = "Subnet Calculator"
+identifier = "com.luca.subnet-calculator"
+icon = "./icon.ico"
+version = "1.0.0"
+copyright = "Copyright (c) 2025"
+category = "Utility"
+short_description = "Subnet Calculator"
+long_description = "A secure subnet calculator built with Rust"

@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use std::net::Ipv4Addr;
 use std::str::FromStr;
 use std::io::{self, Write};

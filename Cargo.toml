@@ -1,11 +1,11 @@
 [package]
-name = "rust_subnet_calculator"
+name = "subnet_calculator"
 version = "0.1.0"
 edition = "2024"
 description = "A subnet calculator built with Rust"
 authors = ["Luca <lucop1911@gmail.com>"]
 license = "MIT"
-repository = "https://github.com/Lucop1911/Rust-subnet-calculator"
+repository = "https://github.com/Lucop1911/subnet_calculator"
 
 [dependencies]
 colored = "3.0.0"

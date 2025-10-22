@@ -1,4 +1,5 @@
 name: Build and Sign Windows MSVC (Azure Key Vault)
+
 on:
   push:
     branches: [main]
@@ -7,17 +8,18 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+
     permissions:
-      contents: read
-      id-token: write  # Required for OIDC authentication
-    
+      contents: write
+      id-token: write
+      
     env:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       AZURE_KEY_VAULT_URL: ${{ secrets.AZURE_KEY_VAULT_URL }}
       AZURE_CERTIFICATE_NAME: ${{ secrets.AZURE_CERTIFICATE_NAME }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -45,16 +47,15 @@ jobs:
           # Install AzureSignTool
           dotnet tool install --global AzureSignTool --version 4.0.1
           
-          # Sign the executable using managed identity or current Azure session
+          # Define path to executable
           $exePath = "target\x86_64-pc-windows-msvc\release\subnet_calculator.exe"
           
-          # Verify file exists
           if (-not (Test-Path $exePath)) {
             Write-Error "Executable not found at $exePath"
             exit 1
           }
           
-          # Sign using Azure Key Vault (more secure approach)
+          # Sign executable using Azure Key Vault
           AzureSignTool sign `
             -kvu "${{ secrets.AZURE_KEY_VAULT_URL }}" `
             -kvi "${{ secrets.AZURE_CLIENT_ID }}" `
@@ -80,7 +81,7 @@ jobs:
           path: target/x86_64-pc-windows-msvc/release/*.exe
           retention-days: 30
           
-      - name: Create Release (on main branch)
+      - name: Create GitHub Release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v1
         with:

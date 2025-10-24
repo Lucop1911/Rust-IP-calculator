@@ -12,26 +12,24 @@ jobs:
     permissions:
       contents: write
       id-token: write
-    
     env:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       AZURE_KEY_VAULT_URL: ${{ secrets.AZURE_KEY_VAULT_URL }}
       AZURE_CERTIFICATE_NAME: ${{ secrets.AZURE_CERTIFICATE_NAME }}
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+      
       - name: Install Rust MSVC
         run: |
           rustup default stable
           rustup target add x86_64-pc-windows-msvc
-          
+      
       - name: Build
         run: cargo build --release --target x86_64-pc-windows-msvc
-        
+      
       - name: Azure Login
         if: ${{ env.AZURE_CLIENT_ID != '' }}
         uses: azure/login@v2
@@ -39,17 +37,14 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          
+      
       - name: Sign with Azure Key Vault
         if: ${{ env.AZURE_CLIENT_ID != '' }}
         shell: powershell
         run: |
           dotnet tool install --global AzureSignTool --version 4.0.1
-          $exePath = "target\x86_64-pc-windows-msvc\release\password_manager.exe"
-          if (-not (Test-Path $exePath)) {
-            Write-Error "Executable not found at $exePath"
-            exit 1
-          }
+          $exePath = "target\x86_64-pc-windows-msvc\release\subnet_calculator.exe"
+          if (-not (Test-Path $exePath)) { Write-Error "Executable not found"; exit 1 }
           AzureSignTool sign `
             -kvu "${{ secrets.AZURE_KEY_VAULT_URL }}" `
             -kvi "${{ secrets.AZURE_CLIENT_ID }}" `
@@ -59,7 +54,15 @@ jobs:
             -td sha256 `
             -v `
             "$exePath"
-            
+      
+      - name: Verify Signature
+        shell: powershell
+        run: |
+          $exePath = "target\x86_64-pc-windows-msvc\release\subnet_calculator.exe"
+          $sig = Get-AuthenticodeSignature $exePath
+          Write-Output "Signature Status: $($sig.Status)"
+          Write-Output "Signer Certificate: $($sig.SignerCertificate.Subject)"
+      
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -82,11 +85,14 @@ jobs:
       - name: Build
         run: cargo build --release --target x86_64-unknown-linux-gnu
 
+      - name: Show Linux build output
+        run: ls -lah target/x86_64-unknown-linux-gnu/release
+
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-binary
-          path: target/x86_64-unknown-linux-gnu/release/password_manager
+          path: target/x86_64-unknown-linux-gnu/release/*
           retention-days: 30
 
   release:
@@ -109,7 +115,7 @@ jobs:
           name: Release v${{ github.run_number }}
           files: |
             artifacts/windows-msvc-binary-signed/*.exe
-            artifacts/linux-binary/password_manager
+            artifacts/linux-binary/*
           generate_release_notes: true
           draft: false
           prerelease: false

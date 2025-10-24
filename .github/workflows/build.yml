@@ -1,32 +1,37 @@
-name: Build and Sign Windows MSVC (Azure Key Vault)
+name: Build and Sign Windows + Linux
+
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
+
 jobs:
-  build:
+  build-windows:
+    name: Build & Sign Windows (MSVC)
     runs-on: windows-latest
     permissions:
       contents: write
       id-token: write
+    
     env:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       AZURE_KEY_VAULT_URL: ${{ secrets.AZURE_KEY_VAULT_URL }}
       AZURE_CERTIFICATE_NAME: ${{ secrets.AZURE_CERTIFICATE_NAME }}
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+        
       - name: Install Rust MSVC
         run: |
           rustup default stable
           rustup target add x86_64-pc-windows-msvc
-      
+          
       - name: Build
         run: cargo build --release --target x86_64-pc-windows-msvc
-      
+        
       - name: Azure Login
         if: ${{ env.AZURE_CLIENT_ID != '' }}
         uses: azure/login@v2
@@ -34,23 +39,17 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-      
+          
       - name: Sign with Azure Key Vault
         if: ${{ env.AZURE_CLIENT_ID != '' }}
         shell: powershell
         run: |
-          # Install AzureSignTool
           dotnet tool install --global AzureSignTool --version 4.0.1
-          
-          # Define path to executable
-          $exePath = "target\x86_64-pc-windows-msvc\release\subnet_calculator.exe"
-          
+          $exePath = "target\x86_64-pc-windows-msvc\release\password_manager.exe"
           if (-not (Test-Path $exePath)) {
             Write-Error "Executable not found at $exePath"
             exit 1
           }
-          
-          # Sign executable using Azure Key Vault
           AzureSignTool sign `
             -kvu "${{ secrets.AZURE_KEY_VAULT_URL }}" `
             -kvi "${{ secrets.AZURE_CLIENT_ID }}" `
@@ -60,29 +59,65 @@ jobs:
             -td sha256 `
             -v `
             "$exePath"
-      
+            
       - name: Verify Signature
         shell: powershell
         run: |
-          $exePath = "target\x86_64-pc-windows-msvc\release\subnet_calculator.exe"
+          $exePath = "target\x86_64-pc-windows-msvc\release\password_manager.exe"
           $sig = Get-AuthenticodeSignature $exePath
           Write-Output "Signature Status: $($sig.Status)"
           Write-Output "Signer Certificate: $($sig.SignerCertificate.Subject)"
-      
-      - name: Upload Artifact
+          
+      - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-msvc-binary-signed
           path: target/x86_64-pc-windows-msvc/release/*.exe
           retention-days: 30
-      
+
+  build-linux:
+    name: Build Linux (GNU)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: |
+          rustup default stable
+          rustup target add x86_64-unknown-linux-gnu
+
+      - name: Build
+        run: cargo build --release --target x86_64-unknown-linux-gnu
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binary
+          path: target/x86_64-unknown-linux-gnu/release/password_manager
+          retention-days: 30
+
+  release:
+    name: Create GitHub Release
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    permissions:
+      contents: write
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
       - name: Create GitHub Release
-        if: github.ref == 'refs/heads/master'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
           name: Release v${{ github.run_number }}
-          files: target/x86_64-pc-windows-msvc/release/*.exe
+          files: |
+            artifacts/windows-msvc-binary-signed/*.exe
+            artifacts/linux-binary/password_manager
           generate_release_notes: true
           draft: false
           prerelease: false

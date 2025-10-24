@@ -92,7 +92,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-binary
-          path: target/x86_64-unknown-linux-gnu/release/*
+          path: target/x86_64-unknown-linux-gnu/release/subnet_calculator
           retention-days: 30
 
   release:
